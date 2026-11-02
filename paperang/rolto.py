@@ -123,20 +123,21 @@ class RoltoPT10:
     def _wait_until_printed(self, rows: int) -> None:
         """印字が終わるまで待つ (この間は接続を保つ)。
 
-        状態の BUSY が 1 → 0 になったら完了。BUSY が一度も立たない場合に備えて
-        行数から見積もった時間 (実機で 92 行は 2 秒で足り、110 行は足りなかった) も待つ。
+        行数から見積もった時間 (実機で 92 行は 2 秒で足り、110 行は足りなかった) は必ず待ち、
+        そのあと状態の BUSY が 2 回続けて 0 になったら完了とみなす。
+        BUSY はブロックの合間に一瞬 0 になることがあり、それを完了と誤ると
+        途中で切断して印字が切れる (見出しだけ出て止まった)。
         """
         estimate = 2.0 + rows * 0.03
         start = time.monotonic()
-        seen_busy = False
+        idle = 0
         while time.monotonic() - start < estimate + 30:
             try:
                 busy = self.status()["busy"]
             except RoltoError:
                 busy = None
-            if busy:
-                seen_busy = True
-            elif busy is False and (seen_busy or time.monotonic() - start >= estimate):
+            idle = idle + 1 if busy is False else 0
+            if idle >= 2 and time.monotonic() - start >= estimate:
                 break
             time.sleep(0.3)
         time.sleep(0.5)
