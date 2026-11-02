@@ -95,6 +95,10 @@ PT10 を同じ LAN の Wi-Fi に参加させておくと、UDP ブロードキ�
 | `pt10_print_text` / `pt10_print_image` | テキスト・画像を印刷 (`feed` で末尾に白紙を足す) |
 | `pt10_feed_paper` | 白紙を印字して紙送り |
 
+印字幅は 384 ドット (48mm) を左右の端まで使えます。印字ヘッドから切り口までは約 7mm (56 ドット) あり、
+`feed` を指定するとこの分を自動で足して、切り口から指定どおりの余白が出るようにします
+(`paperang/rolto.py` の `TEAR_OFFSET_DOTS`)。
+
 プロトコルは `paperang/rolto.py` の先頭にまとめてあります (iPhone の Rolto アプリの通信を
 記録して解析したもの)。
 
