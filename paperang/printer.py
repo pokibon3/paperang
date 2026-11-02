@@ -6,6 +6,7 @@ import struct
 import time
 
 from .protocol import (
+    DEFAULT_SESSION_KEY,
     DEVICE_CRC_KEY,
     STANDARD_CRC_KEY,
     Cmd,
@@ -29,13 +30,16 @@ class PaperangError(RuntimeError):
 
 class Paperang:
     """
-    crc_key     : 送受信の CRC 鍵。既定は実機で確認した 0x33CE7A78。
-    session_key : 指定すると接続時に SET_CRC_KEY で鍵を登録し、以降その鍵を使う
-                  (python-paperang 方式。鍵が切り替わる機体向け)。
+    crc_key     : 鍵登録後に送受信で使う CRC 鍵。既定は実機で確認した 0x33CE7A78。
+    session_key : 接続時に SET_CRC_KEY で登録する鍵 (None で登録しない)。
+                  電源投入直後の実機は標準キーでしか受け付けず、この鍵を登録すると
+                  以降は crc_key (0x33CE7A78) で通信するようになる。登録済みの状態で
+                  もう一度送っても害はない。
     """
 
     def __init__(self, transport: Transport, width: int = DEFAULT_WIDTH,
-                 crc_key: int = DEVICE_CRC_KEY, session_key: int | None = None,
+                 crc_key: int = DEVICE_CRC_KEY,
+                 session_key: int | None = DEFAULT_SESSION_KEY,
                  verbose: bool = False) -> None:
         if width % 8:
             raise ValueError("width must be a multiple of 8")
@@ -97,10 +101,12 @@ class Paperang:
         return self._wait_for({expect, cmd}, timeout).get(expect)
 
     def _register_crc_key(self, key: int) -> None:
-        # 登録パケットは標準キーで CRC を計算し、以降は新キーを使う
+        # 登録パケットは標準キーで CRC を計算し、以降は crc_key を使う。
+        # 登録済みの機体はこのパケットに応答しない (または 03 を返す) ので、応答は読み捨てる
+        crc_key = self._key
         self._key = STANDARD_CRC_KEY
         self.send(Cmd.SET_CRC_KEY, struct.pack("<I", key))
-        self._key = key
+        self._key = crc_key
         self.receive(0.5)
 
     # ---- 情報取得 -------------------------------------------------------
@@ -127,6 +133,8 @@ class Paperang:
         info["power_down_sec"] = None if not pdt or len(pdt) < 2 else struct.unpack_from("<H", pdt)[0]
         status = self.query(Cmd.GET_STATUS, Cmd.SENT_STATUS)
         info["status_raw"] = None if status is None else status.hex()
+        if all(v is None for v in info.values()):
+            raise PaperangError("どの問い合わせにも応答がありません (接続はできたがプリンタと通信できていません)")
         return info
 
     @staticmethod
@@ -203,7 +211,11 @@ class Paperang:
         timeout = 3.0 + rows * 0.02
         self.send(Cmd.GET_STATUS, b"\x01")
         # 実機は SENT_STATUS と GET_STATUS の ACK を続けて返す。ACK だけ待てば十分
-        self._wait_for({Cmd.GET_STATUS}, timeout)
+        if Cmd.GET_STATUS not in self._wait_for({Cmd.GET_STATUS}, timeout):
+            # BLE の書き込み自体は通っても、プリンタが受け取っていないことがある
+            raise PaperangError(
+                "印刷後の状態確認に応答がありません (プリンタにデータが届いておらず、"
+                "印刷されていない可能性があります)")
         self._pending = [p for p in self._pending if p.cmd != Cmd.SENT_STATUS]
 
     def close(self) -> None:

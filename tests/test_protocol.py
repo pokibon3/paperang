@@ -47,9 +47,9 @@ class ProtocolTest(unittest.TestCase):
         self.assertEqual(got[0].data, b"P1\x00")
         self.assertTrue(all(p.crc_ok(DEFAULT_SESSION_KEY) for p in got))
 
-    def test_default_uses_device_key_without_handshake(self):
+    def test_without_handshake_uses_device_key(self):
         t = DryRunTransport()
-        Paperang(t).feed_line(10)
+        Paperang(t, session_key=None).feed_line(10)
         (pkt,) = PacketParser().feed(b"".join(t.sent))
         self.assertEqual(pkt.cmd, Cmd.FEED_LINE)
         self.assertTrue(pkt.crc_ok(DEVICE_CRC_KEY))
@@ -71,15 +71,26 @@ class ProtocolTest(unittest.TestCase):
 
     def test_session_key_handshake(self):
         t = DryRunTransport()
-        Paperang(t, session_key=DEFAULT_SESSION_KEY).feed_line(10)
+        Paperang(t).feed_line(10)
         first, second = PacketParser().feed(b"".join(t.sent))
+        # 既定では標準キーで鍵を登録し、以降は実機の鍵 0x33CE7A78 を使う
         self.assertEqual(first.cmd, Cmd.SET_CRC_KEY)
+        self.assertEqual(first.data, struct.pack("<I", DEFAULT_SESSION_KEY))
         self.assertTrue(first.crc_ok(STANDARD_CRC_KEY))
-        self.assertTrue(second.crc_ok(DEFAULT_SESSION_KEY))
+        self.assertTrue(second.crc_ok(DEVICE_CRC_KEY))
 
     def test_error_ack_raises(self):
         with self.assertRaises(PaperangError):
             Paperang(DryRunTransport(ack=0x03)).feed_line(10)
+
+    def test_print_without_reply_raises(self):
+        # 応答が無いのに「印刷しました」と返さない
+        with self.assertRaises(PaperangError):
+            Paperang(DryRunTransport(ack=None)).print_bitmap(b"\xff" * 48)
+
+    def test_info_without_reply_raises(self):
+        with self.assertRaises(PaperangError):
+            Paperang(DryRunTransport(ack=None)).get_info()
 
     def test_bitmap_length_check(self):
         p = Paperang(DryRunTransport())

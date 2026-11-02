@@ -138,8 +138,9 @@ tests/          プロトコル部の単体テスト (python3 -m unittest discov
 0x02 | cmd | index | len (u16 LE) | data | crc32 (u32 LE) | 0x03
 ```
 
-- CRC は data 部のみ、`zlib.crc32(data, key)`。実機 (BLE 接続) では **鍵 `0x33CE7A78` 固定**
-  (python-paperang の資料にある標準キー `0x35769521` + `SET_CRC_KEY` での鍵登録は、この機体では無効)
+- CRC は data 部のみ、`zlib.crc32(data, key)`。電源投入直後の実機は標準キー `0x35769521` で送受信し、
+  標準キーで `SET_CRC_KEY` (鍵 `0x06B8EF59`) を送ると、電源を切るまで **鍵 `0x33CE7A78`** になる。
+  スマホのアプリもこの登録をするので、ドライバは接続のたびに登録してから `0x33CE7A78` で通信する
 - 各コマンドには同じ cmd 番号で 1 バイトの ACK が返る (`00`=OK、`03`=エラー)
 - `GET_xxx` の問い合わせはデータ `01` を付ける。値は `SENT_xxx` パケットで返る
 - 印刷データは `PRINT_DATA (0)`、1 ライン 48 バイト (384 ドット, 1=黒)、1 パケット最大 1536 バイト

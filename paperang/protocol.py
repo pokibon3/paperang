@@ -7,8 +7,9 @@
     +------+-----+-------+--------+----------+--------+------+
 
 - crc は data 部分のみを対象にした CRC32 (zlib 互換)。初期値に「CRC キー」を使う。
-- 実機 (BLE 接続) では鍵 0x33CE7A78 固定だった。python-paperang の資料では
-  標準キー 0x35769521 + SET_CRC_KEY で鍵登録となっているが、この機体では不要。
+- 電源投入直後の実機は標準キー 0x35769521 で送受信する。標準キーで SET_CRC_KEY
+  (鍵 0x06B8EF59) を送ると、以降は送受信とも 0x33CE7A78 になる (電源を切るまで)。
+  スマホのアプリがこの登録をするので、アプリ使用後はすでに 0x33CE7A78 になっている。
 - 各コマンドには同じ cmd 番号で 1 バイトの ACK が返る (00=OK, 03=エラー)。
 - GET_xxx 系の問い合わせはデータ 0x01 を付けないとエラーになる。
 - 1 パケットあたりのデータ長は最大 1536 バイト。超える場合は分割し index を 0,1,2.. と振る。
@@ -24,8 +25,8 @@ from dataclasses import dataclass
 from enum import IntEnum
 
 STANDARD_CRC_KEY = 0x35769521
-# 実機 (BLE 接続の Paperang) で確認した鍵。送受信ともにこの鍵で CRC を計算し、
-# SET_CRC_KEY を送っても切り替わらなかった。
+# 実機で SET_CRC_KEY (DEFAULT_SESSION_KEY) を登録した後に使われる鍵。
+# 登録済みの状態で SET_CRC_KEY を送っても変わらない。
 DEVICE_CRC_KEY = 0x33CE7A78
 DEFAULT_SESSION_KEY = 0x6968634 ^ 0x2E696D
 MAX_DATA_PER_PACKET = 1536
