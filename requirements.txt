@@ -1,0 +1,3 @@
+pillow>=10.1
+pyserial>=3.5
+bleak>=0.22  # --ble を使う場合のみ
