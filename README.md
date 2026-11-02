@@ -63,11 +63,11 @@ Claude Code などの MCP クライアントから Paperang を操作できま�
 .venv/bin/pip install -e ".[mcp]"   # paperang-mcp コマンドが入る
 ```
 
-このディレクトリの `.mcp.json` に登録済みなので、Claude Code をこのディレクトリで起動すると
-読み込まれます (初回は使用許可の確認あり)。他の場所から使う場合:
+Claude Code に登録します (このディレクトリで実行。`-s project` ならこのディレクトリの
+`.mcp.json` に、`-s user` ならどこからでも使えるように登録されます):
 
 ```sh
-claude mcp add paperang -s user -- /Users/ooe/src/paperang/.venv/bin/paperang-mcp
+claude mcp add paperang -s project -- "$PWD/.venv/bin/paperang-mcp"
 ```
 
 | ツール | 内容 |
@@ -79,7 +79,7 @@ claude mcp add paperang -s user -- /Users/ooe/src/paperang/.venv/bin/paperang-mc
 | `feed_paper` | 紙送り |
 | `configure` | 印字濃度・自動電源オフ時間を設定 |
 
-呼び出しのたびに BLE で接続し、終わると切断します。環境変数 (`.mcp.json` の `env`) で
+呼び出しのたびに BLE で接続し、終わると切断します。環境変数 (`claude mcp add -e KEY=VALUE` や `.mcp.json` の `env`) で
 `PAPERANG_BLE_ADDRESS` / `PAPERANG_PORT` / `PAPERANG_FEED` / `PAPERANG_WIDTH` /
 `PAPERANG_DRY_RUN=1` を指定できます。
 

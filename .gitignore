@@ -3,3 +3,4 @@ __pycache__/
 *.egg-info/
 .claude/
 .DS_Store
+.mcp.json
