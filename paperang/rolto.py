@@ -32,8 +32,8 @@ ROWS_PER_BLOCK = 64
 TCP_PORT = 16384
 UDP_PORT = 20480
 MODEL_NAME = b"KINGJIMRolto PT10"
-# 印字ヘッドから切り口までの距離 (ドット)。PT10 では未計測
-TEAR_OFFSET_DOTS = 0
+# 印字ヘッドから切り口までの距離 (ドット)。実機で約 7mm (2026-11 計測)
+TEAR_OFFSET_DOTS = 56
 
 
 class RoltoError(RuntimeError):
