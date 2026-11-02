@@ -83,6 +83,21 @@ claude mcp add paperang -s project -- "$PWD/.venv/bin/paperang-mcp"
 `PAPERANG_BLE_ADDRESS` / `PAPERANG_PORT` / `PAPERANG_FEED` / `PAPERANG_WIDTH` /
 `PAPERANG_DRY_RUN=1` を指定できます。
 
+### キングジム Rolto (ロルト) PT10
+
+同じ MCP サーバーから、Wi-Fi 接続の Rolto PT10 (幅 384 ドット) も使えます。
+PT10 を同じ LAN の Wi-Fi に参加させておくと、UDP ブロードキャストで自動的に見つけます
+(`PT10_HOST` で IP アドレスを固定することもできます)。
+
+| ツール | 内容 |
+|---|---|
+| `pt10_status` | IP アドレスと状態 (印字中か) を取得 |
+| `pt10_print_text` / `pt10_print_image` | テキスト・画像を印刷 (`feed` で末尾に白紙を足す) |
+| `pt10_feed_paper` | 白紙を印字して紙送り |
+
+プロトコルは `paperang/rolto.py` の先頭にまとめてあります (iPhone の Rolto アプリの通信を
+記録して解析したもの)。
+
 ## ライブラリとして使う
 
 ```python
@@ -108,6 +123,7 @@ paperang/
   imaging.py    画像・テキスト → 1bpp ラスタ変換 (Pillow)
   cli.py        コマンドラインツール
   mcp_server.py MCP サーバー (paperang-mcp)
+  rolto.py      キングジム Rolto PT10 (Wi-Fi) のドライバ
 tools/diag_ble.py  BLE 接続の診断 (生の送受信と CRC 鍵の判定)
 tests/          プロトコル部の単体テスト (python3 -m unittest discover -s tests -t .)
 ```

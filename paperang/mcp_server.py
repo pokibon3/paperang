@@ -8,6 +8,7 @@
   preview_image    画像の印刷イメージを PNG で返す (印刷しない)
   feed_paper       紙送り
   configure        印字濃度・自動電源オフ時間の設定
+  pt10_*           キングジム Rolto PT10 (Wi-Fi) 用: status / print_text / print_image / feed_paper
 
 接続は呼び出しごとに BLE で行い、終わったら切断する (スマホアプリや CLI と取り合わないため)。
 
@@ -17,6 +18,7 @@
   PAPERANG_WIDTH        印字幅ドット (既定 384)
   PAPERANG_FEED         印刷後に切り口から出す余白ドット (既定 80 ≒ 10mm)
   PAPERANG_DRY_RUN      1 にすると実機に送らない (動作確認用)
+  PT10_HOST             PT10 の IP アドレス。省略時は LAN をブロードキャストで検索
 """
 
 from __future__ import annotations
@@ -191,6 +193,72 @@ async def configure(density: int | None = None, power_down_seconds: int | None =
 
     await _with_printer(job)
     return "設定しました"
+
+
+# ---- キングジム Rolto PT10 (Wi-Fi) ------------------------------------------
+_pt10_lock = threading.Lock()
+
+
+async def _with_pt10(fn):
+    from .rolto import RoltoError, RoltoPT10, discover
+
+    def run():
+        with _pt10_lock:
+            host = os.environ.get("PT10_HOST")
+            if not host:
+                found = discover()
+                if not found:
+                    raise ToolError("PT10 が見つかりません (電源と Wi-Fi の接続を確認してください)")
+                host = found[0][0]
+            try:
+                return fn(RoltoPT10(host))
+            except (RoltoError, OSError) as e:
+                raise ToolError(str(e)) from e
+    return await anyio.to_thread.run_sync(run)
+
+
+async def _pt10_print(mono, feed: int) -> str:
+    await _with_pt10(lambda p: p.print_mono_with_margin(mono, feed))
+    return f"PT10 で印刷しました ({mono.width}x{mono.height} ドット, 約 {mono.height / 8:.0f}mm)"
+
+
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
+async def pt10_status() -> dict:
+    """キングジム Rolto PT10 の IP アドレスと状態 (印字中か、未解読の値) を取得する。"""
+    return await _with_pt10(lambda p: {"host": p.host, **p.status()})
+
+
+@mcp.tool()
+async def pt10_print_text(text: str, font_size: int = 28, timestamp: bool = False,
+                          feed: int = DEFAULT_FEED) -> str:
+    """キングジム Rolto PT10 でテキストを印刷する (幅 384 ドット ≒ 48mm)。
+
+    Args:
+        text: 印刷する文字列 (改行可)
+        font_size: 文字の大きさ (px)。28 で 1 行約 13 文字 (全角)
+        timestamp: 先頭に現在日時を入れる
+        feed: 印刷後に足す白紙のドット数 (8 ≒ 1mm、0 で足さない)
+    """
+    return await _pt10_print(_text_mono(text, font_size, timestamp), feed)
+
+
+@mcp.tool()
+async def pt10_print_image(path: str, dither: bool = True, feed: int = DEFAULT_FEED) -> str:
+    """キングジム Rolto PT10 で画像ファイルを印刷幅に縮小して印刷する。
+
+    Args:
+        path: 画像ファイルの絶対パス
+        dither: True で写真向けのディザ、False で白黒二値化 (ロゴ・図向け)
+        feed: 印刷後に足す白紙のドット数 (8 ≒ 1mm、0 で足さない)
+    """
+    return await _pt10_print(_image_mono(path, dither), feed)
+
+
+@mcp.tool()
+async def pt10_feed_paper(dots: int = DEFAULT_FEED) -> str:
+    """キングジム Rolto PT10 の紙を送る (白紙を印字する)。dots はドット数 (8 ≒ 1mm)。"""
+    await _with_pt10(lambda p: p.feed(dots))
+    return f"PT10 で {dots} ドット (約 {dots / 8:.0f}mm) 紙送りしました"
 
 
 def main() -> None:
